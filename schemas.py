@@ -1,48 +1,66 @@
 """
-Database Schemas
+Database Schemas for Grocery & General Store
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
+Each Pydantic model represents a MongoDB collection. The collection name is the lowercase of the class name.
 
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Collections:
+- Category
+- Product
+- Customer
+- Order
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional
 
-# Example schemas (replace with your own):
 
-class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+class Category(BaseModel):
+    name: str = Field(..., description="Category name (e.g., Produce, Dairy, Household)")
+    slug: str = Field(..., description="URL-friendly unique identifier")
+    icon: Optional[str] = Field(None, description="Optional icon name for UI")
+
+
+class ProductVariant(BaseModel):
+    name: str = Field(..., description="Variant label (e.g., 1L, 500g, pack of 6)")
+    price: float = Field(..., ge=0, description="Price for this variant")
+    sku: Optional[str] = Field(None, description="SKU or barcode")
+    stock: int = Field(0, ge=0, description="Units available for this variant")
+
 
 class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
     title: str = Field(..., description="Product title")
     description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+    category: str = Field(..., description="Category slug this product belongs to")
+    price: float = Field(..., ge=0, description="Base price if variants are not used")
+    unit: Optional[str] = Field(None, description="Unit of measure (e.g., kg, L, pcs)")
+    image: Optional[str] = Field(None, description="Image URL")
+    barcode: Optional[str] = Field(None, description="Barcode/UPC/EAN")
+    variants: Optional[List[ProductVariant]] = Field(None, description="Optional variants with stock and pricing")
+    stock: int = Field(0, ge=0, description="Stock if not using variants")
+    is_active: bool = Field(True, description="Whether product is available for sale")
 
-# Add your own schemas here:
-# --------------------------------------------------
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class Customer(BaseModel):
+    name: str
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+
+
+class OrderItem(BaseModel):
+    product_id: str = Field(..., description="ID of the product")
+    title: str
+    quantity: int = Field(..., ge=1)
+    price: float = Field(..., ge=0)
+    variant: Optional[str] = Field(None, description="Variant name if applicable")
+
+
+class Order(BaseModel):
+    customer: Customer
+    items: List[OrderItem]
+    subtotal: float = Field(..., ge=0)
+    discount: float = Field(0, ge=0)
+    tax: float = Field(0, ge=0)
+    total: float = Field(..., ge=0)
+    status: str = Field("pending", description="pending | paid | fulfilled | cancelled")
+    notes: Optional[str] = None
